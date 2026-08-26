@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>我的记录</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .user-info { color: #1d6f9c; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background: #f0f0f0; }
+        .logout-btn { padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .logout-btn:hover { background: #c0392b; }
+        .loading { text-align: center; padding: 40px; color: #6a8a9a; }
+        .error { color: #e74c3c; padding: 15px; background: #fde8e8; border-radius: 8px; }
+        .total { margin: 10px 0; color: #6a8a9a; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div>
+                <h2>📋 我的跌倒检测记录</h2>
+                <div class="user-info">👤 当前用户: <span id="displayUser">加载中...</span></div>
+            </div>
+            <button class="logout-btn" onclick="logout()">退出登录</button>
+        </div>
+
+        <div id="content">
+            <div class="loading">⏳ 加载数据...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://140.143.251.204';
+
+        // 获取当前用户的数据
+        async function loadMyRecords() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">⏳ 加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/get_my_records.php`);
+                const data = await response.json();
+
+                if (data.code === 401) {
+                    // 未登录，跳转到登录页
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                if (data.code !== 200) {
+                    content.innerHTML = `<div class="error">❌ ${data.error || '加载失败'}</div>`;
+                    return;
+                }
+
+                // 显示用户信息
+                document.getElementById('displayUser').textContent = data.user.username + ' (ID: ' + data.user.id + ')';
+
+                // 显示记录
+                if (data.total === 0) {
+                    content.innerHTML = `
+                        <div style="text-align:center;padding:40px;color:#6a8a9a;">
+                            📭 暂无记录
+                            <br><br>
+                            <small>您还没有任何跌倒检测记录</small>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <div class="total">共 ${data.total} 条记录</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>时间</th>
+                                <th>位置</th>
+                                <th>置信度</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.data.forEach(record => {
+                    html += `
+                        <tr>
+                            <td>${record.id || '-'}</td>
+                            <td>${record.event_time || '-'}</td>
+                            <td>${record.location || '-'}</td>
+                            <td>${record.confidence ? (parseFloat(record.confidence) * 100).toFixed(0) + '%' : '-'}</td>
+                            <td>${record.status || '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                content.innerHTML = html;
+
+            } catch (error) {
+                content.innerHTML = `<div class="error">❌ 请求失败: ${error.message}</div>`;
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/logout.php`, { method: 'POST' });
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('退出失败:', error);
+            }
+        }
+
+        // 页面加载
+        loadMyRecords();
+    </script>
+</body>
+</html>

@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跌倒检测系统</title>
+    <style>
+        /* ===== 全局样式 ===== */
+        * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+        body {
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        /* ===== 登录/注册卡片样式 ===== */
+        .card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            padding: 48px;
+            max-width: 480px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0 30px 80px rgba(0,0,0,0.15);
+        }
+        h2 { margin: 0 0 8px 0; color: #1a3a4a; font-size: 28px; }
+        .subhead { color: #5a7a8a; margin-bottom: 32px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: #2a4a5a; }
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #dce4ec;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: #2f8fc9; outline: none; box-shadow: 0 0 0 4px rgba(47,143,201,0.1); }
+        .btn-primary {
+            background: linear-gradient(135deg, #1d6f9c 0%, #155a7d 100%);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 8px;
+        }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(29,111,156,0.3); }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #e8f2fa;
+            color: #1d6f9c;
+            border: 1px solid #b6cedf;
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #d4e4f0; }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-danger:hover { background: #c0392b; }
+        .action-links { display: flex; justify-content: space-between; margin-top: 24px; font-size: 14px; }
+        .action-links a { color: #1d6f9c; cursor: pointer; text-decoration: none; font-weight: 500; }
+        .action-links a:hover { text-decoration: underline; }
+        .alert { 
+            padding: 12px 16px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            display: none; 
+            font-size: 14px;
+            animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .alert-error { background: #fde8e8; color: #c0392b; border-left: 4px solid #c0392b; display: block; }
+        .alert-success { background: #e3f5ec; color: #1a6e4b; border-left: 4px solid #2e9b6e; display: block; }
+        .api-status { margin-top: 16px; padding: 10px 16px; border-radius: 8px; font-size: 13px; background: #f8f9fa; border: 1px solid #dee2e6; }
+        .password-hint { font-size: 12px; color: #7a8a9a; margin-top: 4px; }
+        .password-strength { height: 4px; margin-top: 8px; border-radius: 4px; background: #e0e0e0; transition: all 0.3s; }
+        .password-strength.weak { background: #e74c3c; width: 33%; }
+        .password-strength.medium { background: #f39c12; width: 66%; }
+        .password-strength.strong { background: #27ae60; width: 100%; }
+        .demo-note { margin-top: 20px; padding: 12px; background: #eef4fa; border-radius: 12px; font-size: 13px; color: #2f4f66; text-align: center; }
+        hr { border: none; border-top: 1px solid #e3edf5; margin: 24px 0; }
+        code { background: #eef4fa; padding: 2px 8px; border-radius: 4px; font-size: 13px; }
+        .hidden { display: none !important; }
+
+        /* ===== 仪表板样式 ===== */
+        .dashboard-container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            padding: 32px;
+            max-width: 1000px;
+            width: 100%;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e9f3fa;
+            border-radius: 40px;
+            padding: 12px 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .dashboard-header .user-info {
+            color: #1d6f9c;
+            font-weight: 500;
+        }
+        .dashboard-header .user-info .username {
+            color: #1a3a4a;
+            font-weight: 600;
+        }
+        .record-table {
+            overflow-x: auto;
+            border: 1px solid #e2eef9;
+            border-radius: 16px;
+        }
+        .record-table table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .record-table th { 
+            background: #e8f2fa; 
+            padding: 12px 16px; 
+            text-align: left;
+            font-weight: 600;
+            color: #1a3a4a;
+        }
+        .record-table td { 
+            padding: 12px 16px; 
+            border-bottom: 1px solid #eef6fc;
+        }
+        .record-table tr:hover {
+            background: #f8fbfe;
+        }
+        .status-badge {
+            padding: 4px 14px;
+            border-radius: 30px;
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-detected { background: #fde8e8; color: #c0392b; }
+        .status-normal { background: #d4edda; color: #155724; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        .status-unknown { background: #e2e3e5; color: #383d41; }
+        .loading { text-align: center; padding: 40px; color: #6a8a9a; }
+        .error { color: #e74c3c; padding: 15px; background: #fde8e8; border-radius: 8px; }
+        .total-records { margin: 10px 0 16px 0; color: #6a8a9a; font-size: 14px; }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6a8a9a;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state .title { font-size: 18px; font-weight: 500; color: #1a3a4a; }
+        .empty-state .sub { font-size: 14px; color: #8a9aaa; margin-top: 8px; }
+        .dashboard-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .sample-notice {
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: #fff3cd;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- 主容器 -->
+<!-- ============================================ -->
+<div id="appContainer">
+    <div class="loading">⏳ 加载中...</div>
+</div>
+
+<script>
+// ============================================
+// API 配置
+// ============================================
+const API_BASE = '';
+
+// ============================================
+// 应用主逻辑
+// ============================================
+(function() {
+    let currentView = 'login';
+    let currentUser = null;
+    let isRendering = false;
+    const container = document.getElementById('appContainer');
+
+    // ---------- API 调用 ----------
+    async function apiCall(endpoint, method = 'GET', data = null) {
+        const url = `${API_BASE}/${endpoint}`;
+        console.log('📤 请求:', method, url);
+
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        };
+
+        if (data) {
+            options.body = JSON.stringify(data);
+            console.log('📤 请求数据:', data);
+        }
+
+        try {
+            const response = await fetch(url, options);
+            const result = await response.json();
+            console.log('📥 响应:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ 网络错误:', error);
+            return { 
+                code: 500, 
+                error: `网络请求失败: ${error.message}`
+            };
+        }
+    }
+
+    // ---------- 工具函数 ----------
+    function showAlert(element, message, isSuccess = false) {
+        if (!element) return;
+        element.textContent = message;
+        element.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-error');
+        element.style.display = 'block';
+        
+        clearTimeout(element._timer);
+        element._timer = setTimeout(() => {
+            element.style.display = 'none';
+        }, 5000);
+    }
+
+    function getStatusClass(status) {
+        const map = {
+            'detected': 'status-detected',
+            'fall': 'status-detected',
+            'warning': 'status-warning',
+            'normal': 'status-normal',
+            'confirmed': 'status-warning',
+            'resolved': 'status-normal'
+        };
+        return map[status] || 'status-unknown';
+    }
+
+    function checkPasswordStrength(password) {
+        let strength = 0;
+        if (password.length >= 6) strength++;
+        if (password.length >= 10) strength++;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+        if (/\d/.test(password)) strength++;
+        if (/[^a-zA-Z0-9]/.test(password)) strength++;
+        
+        if (strength <= 2) return 'weak';
+        if (strength <= 3) return 'medium';
+        return 'strong';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '-';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ---------- 加载用户记录 ----------
+    async function loadMyRecords() {
+        const content = document.getElementById('dashboardContent');
+        if (!content) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/get_my_records.php`, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                console.warn('API 返回状态:', response.status);
+                showSampleData(content);
+                return;
+            }
+
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.warn('JSON 解析失败，使用示例数据');
+                showSampleData(content);
+                return;
+            }
+
+            if (data.code === 401) {
+                currentView = 'login';
+                isRendering = false;
+                renderLogin();
+                return;
+            }
+
+            if (data.code !== 200) {
+                console.warn('API 返回错误:', data.error);
+                showSampleData(content);
+                return;
+            }
+
+            const records = data.data || [];
+            const userInfo = data.user || currentUser || { username: '用户' };
+
+            const displayUser = document.getElementById('displayUser');
+            if (displayUser) {
+                displayUser.textContent = userInfo.username + ' (ID: ' + (userInfo.id || '') + ')';
+            }
+
+            if (records.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <div class="title">暂无记录</div>
+                        <div class="sub">您还没有任何跌倒检测记录</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="dashboard-toolbar">
+                    <div class="total-records">共 ${records.length} 条记录</div>
+                    <button class="btn-secondary" onclick="location.reload()">🔄 刷新</button>
+                </div>
+                <div class="record-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>时间</th>
+                                <th>位置</th>
+                                <th>置信度</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            records.forEach(record => {
+                const status = record.status || '未知';
+                html += `
+                    <tr>
+                        <td>${escapeHtml(record.id)}</td>
+                        <td>${escapeHtml(record.event_time)}</td>
+                        <td>${escapeHtml(record.location)}</td>
+                        <td>${record.confidence ? (parseFloat(record.confidence) * 100).toFixed(0) + '%' : '-'}</td>
+                        <td><span class="status-badge ${getStatusClass(status)}">${escapeHtml(status)}</span></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            content.innerHTML = html;
+
+        } catch (error) {
+            console.warn('加载异常，使用示例数据:', error);
+            showSampleData(content);
+        }
+    }
+
+    // ---------- 显示示例数据 ----------
+    function showSampleData(content) {
+        const userInfo = currentUser || { username: '用户', id: '' };
+        
+        const displayUser = document.getElementById('displayUser');
+        if (displayUser) {
+            displayUser.textContent = userInfo.username + ' (ID: ' + (userInfo.id || '') + ')';
+        }
+        
+        const sampleRecords = [
+            {
+                id: 1,
+                event_time: new Date().toLocaleString(),
+                location: 'Camera-1',
+                confidence: 0.95,
+                status: '正常'
+            },
+            {
+                id: 2,
+                event_time: new Date(Date.now() - 3600000).toLocaleString(),
+                location: 'Camera-2',
+                confidence: 0.87,
+                status: '检测到'
+            }
+        ];
+        
+        let html = `
+            <div class="dashboard-toolbar">
+                <div class="total-records">共 ${sampleRecords.length} 条记录 (示例数据)</div>
+                <button class="btn-secondary" onclick="location.reload()">🔄 刷新</button>
+            </div>
+            <div class="record-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>时间</th>
+                            <th>位置</th>
+                            <th>置信度</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        sampleRecords.forEach(record => {
+            html += `
+                <tr>
+                    <td>${record.id}</td>
+                    <td>${record.event_time}</td>
+                    <td>${record.location}</td>
+                    <td>${(record.confidence * 100).toFixed(0) + '%'}</td>
+                    <td><span class="status-badge status-normal">${record.status}</span></td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="sample-notice">
+                ⚠️ 当前显示为示例数据，请确保 get_my_records.php 文件存在且可访问
+            </div>
+        `;
+
+        content.innerHTML = html;
+    }
+
+    // ---------- 登录页 ----------
+    function renderLogin() {
+        if (isRendering && currentView === 'dashboard') return;
+        
+        container.innerHTML = `
+            <div class="card">
+                <h2>🔐 登录</h2>
+                <div class="subhead">跌倒检测 · 后台管理</div>
+                <div id="loginAlert" class="alert" style="display:none;"></div>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label>用户名 或 邮箱</label>
+                        <input type="text" id="loginUsername" placeholder="请输入用户名或邮箱" required>
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="loginPassword" placeholder="请输入密码" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="loginBtn">登 录</button>
+                </form>
+                <div class="action-links">
+                    <span>还没有账号？</span>
+                    <a id="goToRegister">立即注册</a>
+                </div>
+                <hr>
+                <div class="demo-note">
+                    💡 新用户请点击「立即注册」创建账号
+                </div>
+            </div>
+        `;
+
+        const form = document.getElementById('loginForm');
+        const alertBox = document.getElementById('loginAlert');
+        const loginBtn = document.getElementById('loginBtn');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!username || !password) {
+                showAlert(alertBox, '请填写用户名和密码', false);
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = '⏳ 登录中...';
+
+            const result = await apiCall('login.php', 'POST', { 
+                username: username, 
+                password: password 
+            });
+
+            loginBtn.disabled = false;
+            loginBtn.textContent = '登 录';
+
+            if (result.code === 200) {
+                currentUser = result.data;
+                showAlert(alertBox, '登录成功！', true);
+                setTimeout(() => {
+                    window.location.href = "/look.html";
+                }, 1000);
+            } else {
+                showAlert(alertBox, '❌ ' + (result.error || '登录失败，请检查用户名和密码'), false);
+            }
+        });
+
+        document.getElementById('goToRegister').addEventListener('click', function(e) {
+            e.preventDefault();
+            currentView = 'register';
+            renderRegister();
+        });
+    }
+
+    // ---------- 注册页 ----------
+    function renderRegister() {
+        container.innerHTML = `
+            <div class="card">
+                <h2>📝 注册新账号</h2>
+                <div class="subhead">创建您的个人账户</div>
+                <div id="registerAlert" class="alert" style="display:none;"></div>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label>用户名 <span style="color:#e74c3c;">*</span></label>
+                        <input type="text" id="regUsername" placeholder="3-20个字符" required>
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱 <span style="color:#e74c3c;">*</span></label>
+                        <input type="email" id="regEmail" placeholder="user@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>密码 <span style="color:#e74c3c;">*</span></label>
+                        <input type="password" id="regPassword" placeholder="至少6个字符" required>
+                        <div class="password-hint">至少6个字符</div>
+                        <div class="password-strength" id="passwordStrength"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>确认密码 <span style="color:#e74c3c;">*</span></label>
+                        <input type="password" id="regConfirmPassword" placeholder="再次输入密码" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="registerBtn">注 册</button>
+                </form>
+                <div class="action-links">
+                    <span>已有账号？</span>
+                    <a id="goToLogin">去登录</a>
+                </div>
+            </div>
+        `;
+
+        const passwordInput = document.getElementById('regPassword');
+        const strengthBar = document.getElementById('passwordStrength');
+        
+        passwordInput.addEventListener('input', function() {
+            const strength = checkPasswordStrength(this.value);
+            strengthBar.className = 'password-strength ' + strength;
+        });
+
+        const form = document.getElementById('registerForm');
+        const alertBox = document.getElementById('registerAlert');
+        const registerBtn = document.getElementById('registerBtn');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            if (username.length < 3) {
+                showAlert(alertBox, '用户名至少3个字符', false);
+                document.getElementById('regUsername').focus();
+                return;
+            }
+            if (password.length < 6) {
+                showAlert(alertBox, '密码至少6个字符', false);
+                document.getElementById('regPassword').focus();
+                return;
+            }
+            if (password !== confirmPassword) {
+                showAlert(alertBox, '两次输入的密码不一致', false);
+                document.getElementById('regConfirmPassword').focus();
+                return;
+            }
+            if (!email || !email.includes('@')) {
+                showAlert(alertBox, '请输入有效的邮箱地址', false);
+                document.getElementById('regEmail').focus();
+                return;
+            }
+
+            registerBtn.disabled = true;
+            registerBtn.textContent = '⏳ 注册中...';
+
+            try {
+                const response = await fetch(`${API_BASE}/register.php`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        email: email
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    currentUser = result.data;
+                    showAlert(alertBox, '🎉 ' + (result.message || '注册成功！') + ' 即将跳转...', true);
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 1000);
+                } else {
+                    showAlert(alertBox, '❌ ' + (result.error || '注册失败，请稍后重试'), false);
+                }
+            } catch (error) {
+                showAlert(alertBox, '❌ 请求失败: ' + error.message, false);
+            } finally {
+                registerBtn.disabled = false;
+                registerBtn.textContent = '注 册';
+            }
+        });
+
+        document.getElementById('goToLogin').addEventListener('click', function(e) {
+            e.preventDefault();
+            currentView = 'login';
+            renderLogin();
+        });
+    }
+
+    // ---------- 仪表板 ----------
+    async function renderDashboard() {
+        isRendering = true;
+        
+        container.innerHTML = `
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <div>
+                        <h2 style="margin:0;">📋 我的跌倒检测记录</h2>
+                        <div class="user-info">👤 当前用户: <span class="username" id="displayUser">加载中...</span></div>
+                    </div>
+                    <button class="btn-danger" id="logoutBtn">退出登录</button>
+                </div>
+                <div id="dashboardContent">
+                    <div class="loading">⏳ 加载数据...</div>
+                </div>
+            </div>
+        `;
+
+        if (currentUser) {
+            const displayUser = document.getElementById('displayUser');
+            if (displayUser) {
+                displayUser.textContent = currentUser.username + ' (' + currentUser.email + ')';
+            }
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', async function() {
+            await apiCall('logout.php', 'POST');
+            currentUser = null;
+            currentView = 'login';
+            isRendering = false;
+            renderLogin();
+        });
+
+        try {
+            await loadMyRecords();
+        } catch (error) {
+            console.warn('数据加载失败，使用示例数据:', error);
+            const content = document.getElementById('dashboardContent');
+            if (content) {
+                showSampleData(content);
+            }
+        }
+        
+        isRendering = false;
+    }
+
+    // ---------- 路由控制 ----------
+    function render() {
+        if (isRendering && currentView === 'dashboard') return;
+        
+        switch(currentView) {
+            case 'login':
+                renderLogin();
+                break;
+            case 'register':
+                renderRegister();
+                break;
+            case 'dashboard':
+                renderDashboard();
+                break;
+            default:
+                renderLogin();
+        }
+    }
+
+    // ---------- 检查登录状态 ----------
+    let sessionChecked = false;
+
+    async function checkSession() {
+        if (sessionChecked) return;
+        sessionChecked = true;
+        
+        try {
+            const response = await fetch(`${API_BASE}/check_session.php`, {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (data.logged_in) {
+                currentUser = data.user;
+                currentView = 'dashboard';
+            }
+        } catch (error) {
+            console.log('会话检查失败，使用登录页');
+        }
+        render();
+    }
+
+    // ============================================
+    // 启动应用
+    // ============================================
+    checkSession();
+})();
+</script>
+</body>
+</html>

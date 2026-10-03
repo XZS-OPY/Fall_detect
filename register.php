@@ -1,37 +1,31 @@
 <?php
 // ============================================
-// CORS 头 - 必须在任何输出之前
+// CORS 头
 // ============================================
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json; charset=utf-8');
 
-// ============================================
-// 处理 OPTIONS 预检请求 - 立即返回 200
-// ============================================
+// 预检请求
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit(0);  // 重要：使用 exit(0) 确保完全退出
+    exit(0);
+}
+
+// ============================================
+// 生成 token（核心新增）
+// ============================================
+function generateToken() {
+    return bin2hex(random_bytes(32)); 
 }
 
 // ============================================
 // 数据库配置
 // ============================================
-$servername = "140.143.251.204";
-$username = "root";
-$password = "xzs20070516";
-$dbname = "fall_detect";
+API_URL = "https://person.ltd/update_fall.php"
 
-$conn = new mysqli($servername, $username, $password, $dbname);
 
-if ($conn->connect_error) {
-    echo json_encode([
-        'code' => 500,
-        'error' => '数据库连接失败: ' . $conn->connect_error
-    ]);
-    exit;
-}
 
 // ============================================
 // 获取请求数据
@@ -43,8 +37,8 @@ if (!$data) {
     $data = $_GET;
 }
 
-$user = trim($data['username'] ?? '');
-$pass = $data['password'] ?? '';
+$user  = trim($data['username'] ?? '');
+$pass  = $data['password'] ?? '';
 $email = trim($data['email'] ?? '');
 
 // ============================================
@@ -61,7 +55,7 @@ if (empty($pass) || strlen($pass) < 6) {
 }
 
 if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $errors[] = '请输入有效的邮箱地址';
+    $errors[] = '请输入有效邮箱';
 }
 
 if (!empty($errors)) {
@@ -74,7 +68,7 @@ if (!empty($errors)) {
 }
 
 // ============================================
-// 创建 users 表（如果不存在）
+// 自动创建 users 表（含 token 字段）
 // ============================================
 $createTableSQL = "
 CREATE TABLE IF NOT EXISTS users (
@@ -82,6 +76,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
+    api_token VARCHAR(64) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
     status TINYINT DEFAULT 1
@@ -90,7 +85,7 @@ CREATE TABLE IF NOT EXISTS users (
 $conn->query($createTableSQL);
 
 // ============================================
-// 检查用户名或邮箱是否已存在
+// 检查用户是否存在
 // ============================================
 $check = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
 $check->bind_param("ss", $user, $email);
@@ -109,17 +104,20 @@ if ($result->num_rows > 0) {
 $check->close();
 
 // ============================================
-// 加密密码并插入用户
+// 密码加密
 // ============================================
 $hashed_pass = password_hash($pass, PASSWORD_DEFAULT);
 
+// ============================================
+// 插入用户
+// ============================================
 $sql = "INSERT INTO users (username, password, email) VALUES (?, ?, ?)";
 $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
     echo json_encode([
         'code' => 500,
-        'error' => 'SQL 准备失败: ' . $conn->error
+        'error' => 'SQL准备失败: ' . $conn->error
     ]);
     $conn->close();
     exit;
@@ -127,15 +125,35 @@ if (!$stmt) {
 
 $stmt->bind_param("sss", $user, $hashed_pass, $email);
 
+// ============================================
+// 执行注册
+// ============================================
 if ($stmt->execute()) {
+
     $user_id = $conn->insert_id;
-    
-    // 启动会话
+
+    // ============================================
+    // ⭐ 生成 token（核心）
+    // ============================================
+    $token = generateToken();
+
+    // 写入 token
+    $update = $conn->prepare("UPDATE users SET api_token=? WHERE id=?");
+    $update->bind_param("si", $token, $user_id);
+    $update->execute();
+    $update->close();
+
+    // ============================================
+    // session（可选）
+    // ============================================
     session_start();
     $_SESSION['user_id'] = $user_id;
     $_SESSION['username'] = $user;
     $_SESSION['email'] = $email;
-    
+
+    // ============================================
+    // 返回结果（包含 token）
+    // ============================================
     echo json_encode([
         'code' => 200,
         'message' => '注册成功！',
@@ -143,9 +161,11 @@ if ($stmt->execute()) {
             'id' => $user_id,
             'username' => $user,
             'email' => $email,
+            'token' => $token,
             'created_at' => date('Y-m-d H:i:s')
         ]
     ]);
+
 } else {
     echo json_encode([
         'code' => 500,

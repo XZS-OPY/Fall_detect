@@ -1,23 +1,19 @@
-
 import cv2
-import pymysql
 import json
 import time
 import math
+import threading
+import requests
+
 from datetime import datetime
 
-print("=" * 60)
-print("跌倒检测系统")
-print("=" * 60)
+print("系统启动中……")
 
-# ========== MediaPipe 初始化 ==========
+# ================= MediaPipe =================
 print("\n[MediaPipe] 加载...")
 
 try:
     import mediapipe as mp
-
-    if not hasattr(mp, "solutions"):
-        raise RuntimeError("mediapipe异常(无solutions)")
 
     mp_pose = mp.solutions.pose
     mp_draw = mp.solutions.drawing_utils
@@ -35,32 +31,76 @@ except Exception as e:
     print(f"MediaPipe 加载失败: {e}")
     exit(1)
 
-# ========== 数据库 ==========
-DB_CONFIG = {
-    'host': '140.143.251.204',
-    'port': 3306,
-    'user': 'root',
-    'password': 'xzs20070516',
-    'database': 'fall_detect',
-    'charset': 'utf8mb4'
-}
 
-def test_database():
-    try:
-        conn = pymysql.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("SELECT NOW()")
-        print("  数据库连接成功")
-        cursor.close()
-        conn.close()
+# ================= API配置 =================
+API_URL = "https://person.ltd/update_fall.php"
+API_TOKEN = "数据库里的真实device_token"
+
+
+# ================= 限频控制 =================
+last_upload_time = 0
+last_status = None
+
+def should_upload(current_status):
+    global last_upload_time, last_status
+
+    now = time.time()
+
+    # 状态变化 → 立即上传
+    if current_status != last_status:
+        last_status = current_status
+        last_upload_time = now
         return True
+
+    # 每3秒心跳一次
+    if now - last_upload_time > 3:
+        last_upload_time = now
+        return True
+
+    return False
+
+
+# ================= 异步上传 =================
+def async_upload(data):
+    try:
+        res = requests.post(API_URL, json=data, timeout=5)
+
+        if res.status_code == 200:
+            try:
+                result = res.json()
+                if result.get("success"):
+                    print(f"✔ 上传成功: {data['status']}")
+                else:
+                    print("✖ 服务器返回失败:", result)
+            except:
+                print("✖ 返回非JSON:", res.text)
+        else:
+            print("✖ HTTP错误:", res.status_code)
+
     except Exception as e:
-        print(f"数据库连接失败: {e}")
-        return False
+        print("✖ 请求异常:", e)
 
-db_available = test_database()
 
-# ========== 摄像头 ==========
+def update_state(pose_data, confidence, angle, height_diff, status): 
+    data = {  
+        "device_token": API_TOKEN,   # ✅ 正确字段
+        "location": "Camera-4",  
+        "confidence": float(confidence),  
+        "pose_data": pose_data,  
+        "status": status  
+    } 
+
+    threading.Thread(
+        target=async_upload,
+        args=(data,),
+        daemon=True
+    ).start()
+# ================= 工具函数 =================
+def calculate_angle(p1, p2):
+    return math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / math.pi
+
+
+# ================= 摄像头 =================
 print("\n[摄像头] 打开...")
 cap = cv2.VideoCapture(0)
 
@@ -70,57 +110,12 @@ if not cap.isOpened():
 
 print("摄像头已启动")
 
-# ========== 数据库连接 ==========
-conn = None
-cursor = None
 
-if db_available:
-    conn = pymysql.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-
-# ========== 工具函数 ==========
-def calculate_angle(p1, p2):
-    return math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / math.pi
-
-def update_state(pose_data, confidence, angle, height_diff, status):
-
-    if not db_available:
-        return
-
-    try:
-        sql = """
-        INSERT INTO fall_events
-        (user_id, location, confidence, pose_data, event_time, status)
-        VALUES (%s,%s,%s,%s,%s,%s)
-        ON DUPLICATE KEY UPDATE
-            location=VALUES(location),
-            confidence=VALUES(confidence),
-            pose_data=VALUES(pose_data),
-            event_time=VALUES(event_time),
-            status=VALUES(status)
-        """
-
-        cursor.execute(sql, (
-            "1",
-            "Camera-4",
-            float(confidence),
-            json.dumps(pose_data),
-            datetime.now(),
-            status
-        ))
-
-        conn.commit()
-        print(f"状态更新: {status}")
-
-    except Exception as e:
-        print("数据库更新失败:", e)
-
-# ========== 状态变量 ==========
+# ================= 状态变量 =================
 fall_start_time = None
+frame_count = 0
 
 print("\n系统运行中... 按 q 退出")
-
-frame_count = 0
 
 try:
     while True:
@@ -137,6 +132,9 @@ try:
         confidence = 0.5
         angle = 0
         height_diff = 0
+
+        shoulder = None
+        hip = None
 
         if results.pose_landmarks:
 
@@ -178,23 +176,25 @@ try:
                     fall_start_time = None
                     status = "NORMAL"
 
-        # ===== 数据库更新（每一帧）=====
-        update_state(
-            pose_data={
-                "keypoints": [[lm.x, lm.y, lm.z] for lm in (landmarks if results.pose_landmarks else [])]
-            },
-            confidence=confidence,
-            angle=angle,
-            height_diff=height_diff,
-            status=status
-        )
+        # ================= 上传（限频） =================
+        if should_upload(status):
+            update_state(
+                pose_data={
+                    "shoulder": [shoulder.x, shoulder.y] if shoulder else None,
+                    "hip": [hip.x, hip.y] if hip else None
+                },
+                confidence=confidence,
+                angle=angle,
+                height_diff=height_diff,
+                status=status
+            )
 
-        # ===== UI显示 =====
+        # ================= UI =================
         cv2.putText(frame, f"Status: {status}", (50, 50),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         cv2.putText(frame, f"Angle: {angle:.1f}", (50, 100),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
         cv2.imshow("Fall Detection", frame)
 
@@ -205,11 +205,6 @@ finally:
     cap.release()
     cv2.destroyAllWindows()
     pose.close()
-
-    if cursor:
-        cursor.close()
-    if conn:
-        conn.close()
 
     print(f"\n统计: {frame_count} 帧")
     print("程序结束")

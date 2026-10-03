@@ -404,6 +404,8 @@ const API_BASE = '';
         }
     }
 
+    
+
     // ---------- 显示示例数据 ----------
     function showSampleData(content) {
         const userInfo = currentUser || { username: '用户', id: '' };
@@ -534,7 +536,7 @@ const API_BASE = '';
                 currentUser = result.data;
                 showAlert(alertBox, '登录成功！', true);
                 setTimeout(() => {
-                    window.location.href = "/look.html";
+                    window.location.href = "/main.html";
                 }, 1000);
             } else {
                 showAlert(alertBox, '❌ ' + (result.error || '登录失败，请检查用户名和密码'), false);

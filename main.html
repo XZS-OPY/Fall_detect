@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>银发守护</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- ================= 左侧导航 ================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">♡</div>
+      <div>
+        <div class="brand-title">银发守护</div>
+        <div class="brand-subtitle">生活关怀系统</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-btn active" data-view="home">
+        <span class="nav-icon">🏠</span>
+        <span>首页</span>
+      </button>
+      <button class="nav-btn" data-view="med">
+        <span class="nav-icon">💊</span>
+        <span>用药</span>
+      </button>
+      <button class="nav-btn" data-view="health">
+        <span class="nav-icon">❤️</span>
+        <span>健康</span>
+      </button>
+      <button class="nav-btn" data-view="recognition">
+        <span class="nav-icon">📷</span>
+        <span>识别</span>
+      </button>
+      <button class="nav-btn" data-view="settings">
+        <span class="nav-icon">⚙️</span>
+        <span>设置</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="system-status">
+        <span class="status-dot"></span>
+        <span>系统运行正常</span>
+      </div>
+      <button id="voiceBtn" class="voice-btn">🎤 语音助手</button>
+    </div>
+  </aside>
+
+  <!-- ================= 主体 ================= -->
+  <main class="main">
+
+    <!-- 顶部栏 -->
+    <header class="topbar card">
+      <div class="time-area">
+        <div id="clock" class="clock">--:--:--</div>
+        <div id="date" class="date">----</div>
+      </div>
+      <div class="top-actions">
+        <button id="fontMinus" class="top-btn">A-</button>
+        <button id="fontPlus" class="top-btn">A+</button>
+        <div class="online-status">
+          <span class="status-dot"></span>
+          在线
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= 首页 ================= -->
+    <section id="home" class="view active">
+      <div class="welcome">
+        <div>
+          <h1>您好，今天也要照顾好自己</h1>
+          <p>这里是您的个人生活关怀中心</p>
+        </div>
+        <div id="welcomeTime" class="welcome-time">今天</div>
+      </div>
+
+      <div class="dashboard-grid">
+
+        <div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">🚨 跌倒监测</div>
+      <div class="card-subtitle">实时检测记录</div>
+    </div>
+  </div>
+
+  <div id="fallTableContainer">
+    加载中...
+  </div>
+</div>
+
+        <!-- 天气卡片 -->
+        <div class="card weather-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🌤 实时天气</div>
+              <div class="card-subtitle">实时获取当前城市天气</div>
+            </div>
+            <button id="refreshWeatherBtn" class="refresh-btn">↻ 刷新</button>
+          </div>
+
+          <div class="city-selector">
+            <label class="city-label">选择城市</label>
+            <div class="city-control">
+              <select id="citySelect" class="city-select">
+                <option value="">请选择城市</option>
+                <optgroup label="热门城市">
+                  <option value="北京">北京</option>
+                  <option value="上海">上海</option>
+                  <option value="广州">广州</option>
+                  <option value="深圳">深圳</option>
+                  <option value="杭州" selected>杭州</option>
+                  <option value="南京">南京</option>
+                  <option value="成都">成都</option>
+                  <option value="重庆">重庆</option>
+                  <option value="武汉">武汉</option>
+                  <option value="西安">西安</option>
+                </optgroup>
+              </select>
+              <input id="cityInput" class="city-input" type="text" placeholder="或输入城市名称" autocomplete="off">
+              <button id="setCityBtn" class="btn city-submit">查询</button>
+            </div>
+            <div id="cityResults" class="city-results hidden"></div>
+          </div>
+
+          <div id="weatherStatus" class="weather-status">正在读取天气数据…</div>
+
+          <div class="weather-main">
+            <div class="weather-temperature">
+              <span id="weatherTemp">--</span>
+              <span class="temperature-unit">°C</span>
+            </div>
+            <div class="weather-description">
+              <div id="weatherText">--</div>
+              <div id="weatherCity" class="weather-city">--</div>
+              <div id="weatherUpdateTime" class="weather-update">最后更新：--</div>
+            </div>
+          </div>
+
+          <div class="weather-details">
+            <div class="weather-item">
+              <span class="weather-item-icon">💧</span>
+              <div>
+                <div class="weather-item-label">湿度</div>
+                <div id="weatherHumidity" class="weather-item-value">-- %</div>
+              </div>
+            </div>
+            <div class="weather-item">
+              <span class="weather-item-icon">💨</span>
+              <div>
+                <div class="weather-item-label">风速</div>
+                <div id="weatherWind" class="weather-item-value">-- km/h</div>
+              </div>
+            </div>
+            <div class="weather-item">
+              <span class="weather-item-icon">🌡</span>
+              <div>
+                <div class="weather-item-label">体感温度</div>
+                <div id="weatherFeelsLike" class="weather-item-value">-- °C</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 提醒卡片 -->
+        <div class="card reminder-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔔 今日提醒</div>
+              <div class="card-subtitle">您今天有一项待完成事项</div>
+            </div>
+          </div>
+          <div class="reminder-content">
+            <div class="reminder-icon">💊</div>
+            <div class="reminder-info">
+              <h3>按时服药</h3>
+              <p>请按照医嘱及时服用药物</p>
+              <div class="reminder-time">下一次提醒：19:30</div>
+            </div>
+          </div>
+          <button class="btn reminder-btn">我已完成</button>
+        </div>
+      </div>
+
+      <!-- 主动关怀 -->
+      <div class="section-title">
+        <h2>主动关怀</h2>
+        <span>今日健康小贴士</span>
+      </div>
+      <div class="care-grid">
+        <div class="care-card">
+          <div class="care-icon">🚶</div>
+          <div>
+            <h3>适量运动</h3>
+            <p>建议今天散步 30 分钟</p>
+          </div>
+        </div>
+        <div class="care-card">
+          <div class="care-icon">💧</div>
+          <div>
+            <h3>记得喝水</h3>
+            <p>保持充足的水分摄入</p>
+          </div>
+        </div>
+        <div class="care-card">
+          <div class="care-icon">🌙</div>
+          <div>
+            <h3>规律作息</h3>
+            <p>今晚建议 22:30 前入睡</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 用药 ================= -->
+    <section id="med" class="view">
+      <div class="page-title">
+        <h1>💊 用药管理</h1>
+        <p>帮助您按时、按量服药</p>
+      </div>
+      <div class="card">
+        <h2>今日用药进度</h2>
+        <div class="progress">
+          <div id="progressBar"></div>
+        </div>
+        <div class="progress-text">
+          <span id="progressText">30%</span>
+        </div>
+        <button id="addProgress" class="btn" style="padding:12px 28px;background:var(--primary);color:#fff;border:none;border-radius:30px;font-size:18px;font-weight:600;cursor:pointer;transition:0.2s;">完成一次服药</button>
+      </div>
+    </section>
+
+    <!-- ================= 健康 ================= -->
+    <section id="health" class="view">
+      <div class="page-title">
+        <h1>❤️ 健康建议</h1>
+        <p>关注日常健康状态</p>
+      </div>
+      <div class="health-grid">
+        <div class="card health-card">
+          <div class="health-icon">🚶</div>
+          <h3>运动</h3>
+          <p>建议每天进行适量运动，例如散步 30 分钟。</p>
+        </div>
+        <div class="card health-card">
+          <div class="health-icon">💧</div>
+          <h3>饮水</h3>
+          <p>保持适当饮水，避免长时间不喝水。</p>
+        </div>
+        <div class="card health-card">
+          <div class="health-icon">😴</div>
+          <h3>睡眠</h3>
+          <p>保持规律作息，保证充足睡眠。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 识别 ================= -->
+    <section id="recognition" class="view">
+      <div class="page-title">
+        <h1>📷 智能识别</h1>
+        <p>拍照或上传图片，系统将自动识别其中的文字内容</p>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:8px 0;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:17px;color:var(--text-light);">
+          <input type="checkbox" id="autoSpeakCheck" checked style="width:20px;height:20px;accent-color:var(--primary);">
+          <span>识别后自动朗读</span>
+        </label>
+      </div>
+
+      <div class="recog-grid">
+        <div class="card">
+          <h2 style="font-size:22px;font-weight:700;margin-bottom:12px;">📤 上传图片</h2>
+          <div id="dropZone" class="recog-upload-area">
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text">点击或拖拽图片到这里</div>
+            <div class="upload-hint">支持 JPG / PNG / BMP / WEBP</div>
+            <button id="uploadBtn" class="upload-btn">📁 选择图片</button>
+            <button id="cameraBtn" class="upload-btn" style="background:#5b7f95;">📷 拍照</button>
+          </div>
+          <input type="file" id="fileInput" accept="image/*">
+
+          <div id="cameraContainer" class="camera-container">
+            <video id="video" autoplay></video>
+            <div class="cam-overlay">
+              <button id="captureBtn" class="cam-btn capture">📸 拍照</button>
+              <button id="closeCameraBtn" class="cam-btn close">✕ 关闭</button>
+            </div>
+          </div>
+
+          <div id="previewContainer" class="recog-preview">
+            <img id="previewImg" src="" alt="预览">
+          </div>
+
+          <div class="recog-actions">
+            <button id="recognizeBtn" class="action-btn primary">🔍 开始识别</button>
+            <button id="clearImageBtn" class="action-btn secondary">🗑️ 清除图片</button>
+          </div>
+
+          <div class="recog-stats">
+            <span class="stat-item">📊 已识别：<strong id="recogCount">0</strong> 次</span>
+            <span class="stat-item">📝 总字符：<strong id="charCount">0</strong></span>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;flex-direction:column;">
+          <h2 style="font-size:22px;font-weight:700;margin-bottom:12px;">📖 识别结果</h2>
+          <div id="resultBox" class="recog-result-box">
+            <span class="placeholder">👆 上传图片后点击「开始识别」</span>
+          </div>
+          <div class="recog-actions" style="margin-top:12px;justify-content:flex-start;">
+            <button id="copyResultBtn" class="action-btn secondary">📋 复制结果</button>
+            <button id="speakResultBtn" class="action-btn secondary">🔊 朗读</button>
+            <button id="clearResultBtn" class="action-btn secondary">🗑️ 清空</button>
+          </div>
+          <div class="recog-history">
+            <h3>📜 识别历史</h3>
+            <div id="historyList" class="recog-history-list">
+              <div class="recog-history-empty">暂无识别记录</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 设置 ================= -->
+    <section id="settings" class="view">
+      <div class="page-title">
+        <h1>⚙️ 系统设置</h1>
+        <p>调整系统显示与使用方式</p>
+      </div>
+      <div class="settings-grid">
+        <div class="card">
+          <h2>字体大小</h2>
+          <div class="font-settings">
+            <button id="smallFontBtn">小</button>
+            <button id="mediumFontBtn" class="active">中</button>
+            <button id="largeFontBtn">大</button>
+            <button id="xlFontBtn">特大</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>天气设置</h2>
+          <p class="setting-info">当前城市：<strong id="settingCity">杭州</strong></p>
+          <button id="clearCityBtn" class="btn danger-btn">清除城市记录</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      银发守护 · 生活关怀系统
+    </footer>
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script src="config.js"></script>
+<script src="weather.js"></script>
+<script src="clock.js"></script>
+<script src="navigation.js"></script>
+<script src="font.js"></script>
+<script src="medicine.js"></script>
+<script src="voice.js"></script>
+<script src="ocr.js"></script>
+
+</body>
+</html>
